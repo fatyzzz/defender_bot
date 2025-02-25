@@ -1,38 +1,42 @@
 import json
 import os
-from dataclasses import dataclass
 from typing import Dict, Any
 
 from dotenv import load_dotenv
+from pydantic import BaseModel, ValidationError
 
 load_dotenv()
 
 
-@dataclass
-class Config:
-    BOT_TOKEN: str = os.getenv("BOT_TOKEN")
-    DB_USER: str = os.getenv("DB_USER")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD")
-    DB_NAME: str = os.getenv("DB_NAME")
-    DB_HOST: str = os.getenv("DB_HOST")
-    ALLOWED_CHAT_ID: int = int(os.getenv("ALLOWED_CHAT_ID", 0))
-    FALLBACK_THREAD_ID: int = int(
-        os.getenv("FALLBACK_THREAD_ID", 0)
-    )  # Добавили для форумов
+class Config(BaseModel):
+    """Конфигурация бота с валидацией через pydantic."""
+    BOT_TOKEN: str
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_NAME: str
+    DB_HOST: str
+    ALLOWED_CHAT_ID: int = 0
+    FALLBACK_THREAD_ID: int = 0
 
-    def __post_init__(self):
-        required = ["BOT_TOKEN", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_HOST"]
-        missing = [field for field in required if not getattr(self, field)]
-        if missing:
-            raise ValueError(f"Отсутствуют переменные окружения: {', '.join(missing)}")
+    class Config:
+        extra = "forbid"  # Запрещаем лишние поля
+
+
+try:
+    config = Config(**{key: os.getenv(key) for key in Config.__annotations__})
+except ValidationError as e:
+    raise ValueError(f"Ошибка в конфигурации: {e}")
 
 
 def load_json_config() -> Dict[str, Any]:
+    """Загрузка данных из config.json с базовой валидацией."""
     with open("data/config.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if not all(key in data for key in ["questions", "dialogs"]):
+        raise ValueError("Отсутствуют обязательные ключи в config.json")
+    return data
 
 
-config = Config()
 json_config = load_json_config()
 questions = json_config["questions"]
 dialogs = json_config["dialogs"]

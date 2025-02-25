@@ -1,60 +1,39 @@
 import asyncio
 import logging
+from functools import partial
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
+from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram import BaseMiddleware
 
-from config import Config
-from database import (
-    create_pool,
-    init_db,
-    cleanup_expired_bans,
-)
-from handlers.language import language_callback_handler
-from handlers.quiz import group_message_handler, quiz_callback_handler
-from handlers.start import start_handler
+from config import config
+from database import create_pool, init_db, cleanup_expired_bans
+from handlers import setup_handlers
 from utils.logger import setup_logging
 
 
+class ErrorMiddleware(BaseMiddleware):
+    """Middleware для обработки ошибок."""
+    async def __call__(self, handler, event, data: dict) -> None:
+        try:
+            return await handler(event, data)
+        except Exception as e:
+            logging.error(f"Unhandled exception for update {event.update_id}: {e}", exc_info=True)
+            raise
+
+
 async def main() -> None:
+    """Запуск бота."""
     setup_logging()
     logging.info("Starting bot...")
 
-    bot = Bot(token=Config.BOT_TOKEN)
+    bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
     pool = await create_pool()
     await init_db(pool)
 
-    @dp.message(Command(commands=["start"]))
-    async def _(message: types.Message) -> None:
-        await start_handler(message)
-
-    @dp.message(
-        lambda message: message.chat.type in ["group", "supergroup"]
-        and message.new_chat_members is not None
-    )
-    async def _(message: types.Message, state: "FSMContext") -> None:
-        for member in message.new_chat_members:
-            if not member.is_bot:
-                await group_message_handler(message, state, pool)
-                break
-
-    @dp.callback_query(lambda c: c.data.startswith("lang_"))
-    async def _(callback: types.CallbackQuery, state: "FSMContext") -> None:
-        await language_callback_handler(callback, state, pool)
-
-    @dp.callback_query(lambda c: c.data.startswith("quiz_"))
-    async def _(callback: types.CallbackQuery, state: "FSMContext") -> None:
-        await quiz_callback_handler(callback, state, pool)
-
-    @dp.errors()
-    async def error_handler(update: types.Update, exception: Exception) -> None:
-        logging.error(
-            f"Unhandled exception for update {update.update_id}: {exception}",
-            exc_info=True,
-        )
+    dp.update.outer_middleware(ErrorMiddleware())
+    setup_handlers(dp, bot=bot, pool=pool)  # Передаём bot и pool
 
     async def cleanup_task():
         while True:
@@ -65,8 +44,6 @@ async def main() -> None:
 
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-    except Exception as e:
-        logging.error(f"Polling failed: {e}", exc_info=True)
     finally:
         await bot.session.close()
         await pool.close()
