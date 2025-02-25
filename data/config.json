@@ -8,9 +8,27 @@
         "zh": "Xray-core 是用哪种语言编写的？"
       },
       "answers": {
-        "en": ["C++", "Go", "Python", "JavaScript", "Rust"],
-        "ru": ["C++", "Go", "Python", "JavaScript", "Rust"],
-        "zh": ["C++", "Go", "Python", "JavaScript", "Rust"]
+        "en": [
+          "C++",
+          "Go",
+          "Python",
+          "JavaScript",
+          "Rust"
+        ],
+        "ru": [
+          "C++",
+          "Go",
+          "Python",
+          "JavaScript",
+          "Rust"
+        ],
+        "zh": [
+          "C++",
+          "Go",
+          "Python",
+          "JavaScript",
+          "Rust"
+        ]
       },
       "correct_index": 1
     },
@@ -22,9 +40,27 @@
         "zh": "以下哪个协议不被 Xray-core 支持？"
       },
       "answers": {
-        "en": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"],
-        "ru": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"],
-        "zh": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"]
+        "en": [
+          "SOCKS5",
+          "HTTP",
+          "Shadowsocks",
+          "SSH",
+          "VMess"
+        ],
+        "ru": [
+          "SOCKS5",
+          "HTTP",
+          "Shadowsocks",
+          "SSH",
+          "VMess"
+        ],
+        "zh": [
+          "SOCKS5",
+          "HTTP",
+          "Shadowsocks",
+          "SSH",
+          "VMess"
+        ]
       },
       "correct_index": 3
     },
@@ -36,9 +72,27 @@
         "zh": "在 Xray-core 中，VMess 是什么？\n\n1. 认证协议\n2. 文件传输协议\n3. 加密系统\n4. 数据压缩方法\n5. 服务器配置"
       },
       "answers": {
-        "en": ["1", "2", "3", "4", "5"],
-        "ru": ["1", "2", "3", "4", "5"],
-        "zh": ["1", "2", "3", "4", "5"]
+        "en": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "ru": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "zh": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
       },
       "correct_index": 0
     },
@@ -50,9 +104,27 @@
         "zh": "以下哪个组件不属于 Xray-core 的配置？"
       },
       "answers": {
-        "en": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"],
-        "ru": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"],
-        "zh": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"]
+        "en": [
+          "Inbound",
+          "Outbound",
+          "Routing",
+          "Policy",
+          "QR-Code"
+        ],
+        "ru": [
+          "Inbound",
+          "Outbound",
+          "Routing",
+          "Policy",
+          "QR-Code"
+        ],
+        "zh": [
+          "Inbound",
+          "Outbound",
+          "Routing",
+          "Policy",
+          "QR-Code"
+        ]
       },
       "correct_index": 4
     },
@@ -64,9 +136,27 @@
         "zh": "Xray-core 中 'routing' 模块实现了哪些功能？\n\n1. 确定流量路线并选择对应的出口\n2. 确定流量路线并选择对应的入口\n3. 确定流量路线并选择 DNS\n4. 流量分析\n5. 网站访问控制"
       },
       "answers": {
-        "en": ["1", "2", "3", "4", "5"],
-        "ru": ["1", "2", "3", "4", "5"],
-        "zh": ["1", "2", "3", "4", "5"]
+        "en": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "ru": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "zh": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
       },
       "correct_index": 0
     }
