@@ -1,0 +1,102 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": {
+        "en": "In which language is Xray-core written?",
+        "ru": "На каком языке написан Xray-core?",
+        "zh": "Xray-core 是用哪种语言编写的？"
+      },
+      "answers": {
+        "en": ["C++", "Go", "Python", "JavaScript", "Rust"],
+        "ru": ["C++", "Go", "Python", "JavaScript", "Rust"],
+        "zh": ["C++", "Go", "Python", "JavaScript", "Rust"]
+      },
+      "correct_index": 1
+    },
+    {
+      "id": 2,
+      "question": {
+        "en": "Which of the following protocols is not supported by Xray-core?",
+        "ru": "Какой из следующих протоколов не поддерживается Xray-core?",
+        "zh": "以下哪个协议不被 Xray-core 支持？"
+      },
+      "answers": {
+        "en": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"],
+        "ru": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"],
+        "zh": ["SOCKS5", "HTTP", "Shadowsocks", "SSH", "VMess"]
+      },
+      "correct_index": 3
+    },
+    {
+      "id": 3,
+      "question": {
+        "en": "What is VMess in the context of Xray-core?\n\n1. Authentication protocol\n2. File transfer protocol\n3. Encryption system\n4. Data compression method\n5. Server configuration",
+        "ru": "Что такое VMess в контексте Xray-core?\n\n1. Протокол аутентификации\n2. Протокол передачи файлов\n3. Система шифрования\n4. Метод сжатия данных\n5. Настройка сервера",
+        "zh": "在 Xray-core 中，VMess 是什么？\n\n1. 认证协议\n2. 文件传输协议\n3. 加密系统\n4. 数据压缩方法\n5. 服务器配置"
+      },
+      "answers": {
+        "en": ["1", "2", "3", "4", "5"],
+        "ru": ["1", "2", "3", "4", "5"],
+        "zh": ["1", "2", "3", "4", "5"]
+      },
+      "correct_index": 0
+    },
+    {
+      "id": 4,
+      "question": {
+        "en": "Which of the following components is not part of the Xray-core configuration?",
+        "ru": "Какой из следующих компонентов не является частью конфигурации Xray-core?",
+        "zh": "以下哪个组件不属于 Xray-core 的配置？"
+      },
+      "answers": {
+        "en": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"],
+        "ru": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"],
+        "zh": ["Inbound", "Outbound", "Routing", "Policy", "QR-Code"]
+      },
+      "correct_index": 4
+    },
+    {
+      "id": 5,
+      "question": {
+        "en": "What functions does the 'routing' module implement in Xray-core?\n\n1. Determining the route for traffic and selecting the corresponding outbound\n2. Determining the route for traffic and selecting the corresponding inbound\n3. Determining the route for traffic and selecting DNS\n4. Traffic analysis\n5. Website access control",
+        "ru": "Какие функции реализует модуль 'routing' в Xray-core?\n\n1. Определение маршрута для трафика и выбор соответствующего исходящего соединения\n2. Определение маршрута для трафика и выбор соответствующего входящего соединения\n3. Определение маршрута для трафика и выбор DNS\n4. Анализ трафика\n5. Контроль доступа к сайтам",
+        "zh": "Xray-core 中 'routing' 模块实现了哪些功能？\n\n1. 确定流量路线并选择对应的出口\n2. 确定流量路线并选择对应的入口\n3. 确定流量路线并选择 DNS\n4. 流量分析\n5. 网站访问控制"
+      },
+      "answers": {
+        "en": ["1", "2", "3", "4", "5"],
+        "ru": ["1", "2", "3", "4", "5"],
+        "zh": ["1", "2", "3", "4", "5"]
+      },
+      "correct_index": 0
+    }
+  ],
+  "dialogs": {
+    "language_selection": "Выберите язык / Choose language / 选择语言:",
+    "language_set": {
+      "en": "Language set to English. Starting quiz...",
+      "ru": "Язык установлен на Русский. Запускаем тест...",
+      "zh": "语言已设置为中文。开始测试..."
+    },
+    "greeting": {
+      "en": "Hello, {name}! You have 30 seconds to answer the following question:\n\n",
+      "ru": "Привет, {name}! У тебя есть 30 секунд, чтобы ответить на следующий вопрос:\n\n",
+      "zh": "你好, {name}！你有30秒时间回答下面的问题：\n\n"
+    },
+    "correct": {
+      "en": "Correct! Welcome to the group.",
+      "ru": "Правильно! Добро пожаловать в группу.",
+      "zh": "正确！欢迎加入群组。"
+    },
+    "incorrect": {
+      "en": "Incorrect, {name}! This group is only for VPN developers; ordinary users have no place here. You will be muted for 1 day and then kicked.",
+      "ru": "Неверно, {name}! Эта группа только для VPN разработчиков; обычным пользователям здесь не место. Вы будете замьючены на 1 день, а затем кикнуты.",
+      "zh": "错误, {name}！这个群组只面向VPN开发者；普通用户不欢迎。你将被禁言1天，然后被踢出。"
+    },
+    "timeout": {
+      "en": "Time is up! {name} did not answer within 30 seconds. They will be muted for 1 day and then kicked from the group.",
+      "ru": "Время вышло! {name} не ответил в течение 30 секунд. Он будет замьючен на 1 день, а затем кикнут из группы.",
+      "zh": "时间到！{name}的用户在30秒内没有回答。他将被禁言1天，然后被踢出群组。"
+    }
+  }
+}
