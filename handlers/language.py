@@ -17,6 +17,20 @@ async def language_selection_handler(
     pool: PoolType,
 ) -> None:
     """Запрашивает у новых пользователей выбор языка с таймаутом."""
+    # Проверяем текущее состояние пользователя
+    current_state = await state.get_state()
+    if current_state == UserState.waiting_for_language:
+        # Если пользователь уже ждет выбора языка, удаляем его сообщение и выходим
+        try:
+            await bot.delete_message(message.chat.id, message.message_id)
+            logging.info(
+                f"Удалено сообщение {message.message_id} во время ожидания языка"
+            )
+        except TelegramBadRequest:
+            logging.warning(f"Не удалось удалить сообщение {message.message_id}")
+        return
+
+    # Проверяем условия для запуска процесса выбора языка
     if (
         message.chat.id != config.ALLOWED_CHAT_ID
         or await check_user_passed(pool, message.from_user.id)
@@ -59,6 +73,7 @@ async def language_selection_handler(
         logging.warning(f"Не удалось отправить сообщение о выборе языка: {e}")
         return
 
+    # Устанавливаем состояние и сохраняем данные
     await state.set_state(UserState.waiting_for_language)
     await state.update_data(
         lang_message_id=lang_msg.message_id,
@@ -66,6 +81,7 @@ async def language_selection_handler(
         user_messages=[message.message_id],  # Сохраняем ID первого сообщения
     )
 
+    # Запускаем таймаут
     asyncio.create_task(
         language_selection_timeout(
             bot, state, message.chat.id, thread_id, message.from_user.id, pool
@@ -97,7 +113,7 @@ async def language_selection_timeout(
             except TelegramBadRequest:
                 logging.warning(f"Не удалось удалить сообщение {lang_message_id}")
 
-        # Удаляем все сообщения пользователя, включая первое
+        # Удаляем все сообщения пользователя
         for msg_id in user_messages:
             try:
                 await bot.delete_message(chat_id, msg_id)
