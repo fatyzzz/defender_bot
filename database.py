@@ -53,7 +53,8 @@ async def init_db(pool: PoolType) -> None:
     """Инициализация таблиц и индексов в базе данных."""
     if config.DB_TYPE == "postgres":
         async with pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS passed_users (
                     user_id BIGINT PRIMARY KEY,
                     passed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -64,28 +65,35 @@ async def init_db(pool: PoolType) -> None:
                 );
                 CREATE INDEX IF NOT EXISTS idx_banned_users_banned_until 
                 ON banned_users (banned_until);
-            """)
+            """
+            )
     elif config.DB_TYPE == "mysql":
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute("""
+                await cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS passed_users (
                         user_id BIGINT PRIMARY KEY,
                         passed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
-                await cur.execute("""
+                """
+                )
+                await cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS banned_users (
                         user_id BIGINT PRIMARY KEY,
                         banned_until TIMESTAMP
                     )
-                """)
+                """
+                )
                 # Убираем IF NOT EXISTS для индекса и добавляем обработку ошибок
                 try:
-                    await cur.execute("""
+                    await cur.execute(
+                        """
                         CREATE INDEX idx_banned_users_banned_until 
                         ON banned_users (banned_until)
-                    """)
+                    """
+                    )
                 except pymysql.err.ProgrammingError as e:
                     if e.args[0] == 1061:  # Код ошибки для "Duplicate index"
                         pass  # Игнорируем, если индекс уже существует
@@ -105,7 +113,8 @@ async def check_user_passed(pool: PoolType, user_id: int) -> bool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "SELECT EXISTS(SELECT 1 FROM passed_users WHERE user_id = %s)", (user_id,)
+                    "SELECT EXISTS(SELECT 1 FROM passed_users WHERE user_id = %s)",
+                    (user_id,),
                 )
                 result = await cur.fetchone()
                 return bool(result[0])
@@ -124,7 +133,7 @@ async def check_user_banned(pool: PoolType, user_id: int) -> bool:
             async with conn.cursor() as cur:
                 await cur.execute(
                     "SELECT EXISTS(SELECT 1 FROM banned_users WHERE user_id = %s AND banned_until > NOW())",
-                    (user_id,)
+                    (user_id,),
                 )
                 result = await cur.fetchone()
                 return bool(result[0])
@@ -143,7 +152,7 @@ async def mark_user_passed(pool: PoolType, user_id: int) -> None:
             async with conn.cursor() as cur:
                 await cur.execute(
                     "INSERT INTO passed_users (user_id) VALUES (%s) ON DUPLICATE KEY UPDATE user_id = user_id",
-                    (user_id,)
+                    (user_id,),
                 )
 
 
