@@ -1,6 +1,6 @@
-import json
 import os
 from typing import Dict, Any
+import json
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
@@ -18,16 +18,15 @@ class Config(BaseModel):
     DB_PASSWORD: str
     DB_NAME: str
     DB_HOST: str
-    DB_PORT: int | None = None  # Опционально, не требуется при использовании сокета
-    DB_SOCKET: str | None = None  # Опционально для Unix-сокета в MySQL
-    ALLOWED_CHAT_ID: int = 0  # ID чата, где работает бот
-    FALLBACK_THREAD_ID: int = 0  # ID ветки для форумных групп
+    DB_PORT: int | None = None  # Опционально, если используется сокет
+    DB_SOCKET: str | None = None  # Опционально для Unix-сокета
+    ALLOWED_CHAT_ID: int  # ID чата, где работает бот
 
     class Config:
         extra = "forbid"  # Запрещаем лишние поля
 
 
-# Загружаем переменные из .env и валидируем через pydantic
+# Загружаем и валидируем конфигурацию
 try:
     config = Config(**{key: os.getenv(key) for key in Config.__annotations__})
 except ValidationError as e:

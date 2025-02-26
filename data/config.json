@@ -162,11 +162,11 @@
     }
   ],
   "dialogs": {
-    "language_selection": "Выберите язык / Choose language / 选择语言:",
+    "language_selection": "{name}, выберите язык / choose language / 选择语言:",
     "language_set": {
-      "en": "Language set to English. Starting quiz...",
-      "ru": "Язык установлен на Русский. Запускаем тест...",
-      "zh": "语言已设置为中文。开始测试..."
+      "en": "{name}, language set to English. Starting quiz...",
+      "ru": "{name}, язык установлен на Русский. Запускаем тест...",
+      "zh": "{name}, 语言已设置为中文。开始测试..."
     },
     "greeting": {
       "en": "Hello, {name}! You have 30 seconds to answer the following question:\n\n",

@@ -30,18 +30,23 @@ async def main() -> None:
     setup_logging()
     logging.info("Starting bot...")
 
+    # Инициализация бота и диспетчера
     bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
+
+    # Инициализация базы данных
     pool = await create_pool()
     await init_db(pool)
 
+    # Регистрация middleware и хэндлеров
     dp.update.outer_middleware(ErrorMiddleware())
-    setup_handlers(dp, bot=bot, pool=pool)  # Передаём bot и pool
+    setup_handlers(dp, bot=bot, pool=pool)
 
+    # Задача для очистки истекших банов
     async def cleanup_task():
         while True:
             await cleanup_expired_bans(pool)
-            await asyncio.sleep(300)
+            await asyncio.sleep(300)  # Проверка каждые 5 минут
 
     asyncio.create_task(cleanup_task())
 

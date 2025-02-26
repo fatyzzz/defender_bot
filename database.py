@@ -76,7 +76,7 @@ async def init_db(pool: PoolType) -> None:
                         user_id BIGINT PRIMARY KEY,
                         passed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """
+                    """
                 )
                 await cur.execute(
                     """
@@ -84,18 +84,18 @@ async def init_db(pool: PoolType) -> None:
                         user_id BIGINT PRIMARY KEY,
                         banned_until TIMESTAMP
                     )
-                """
+                    """
                 )
-                # Убираем IF NOT EXISTS для индекса и добавляем обработку ошибок
+                # Попытка создать индекс с правильной обработкой ошибки
                 try:
                     await cur.execute(
                         """
                         CREATE INDEX idx_banned_users_banned_until 
                         ON banned_users (banned_until)
-                    """
+                        """
                     )
-                except pymysql.err.ProgrammingError as e:
-                    if e.args[0] == 1061:  # Код ошибки для "Duplicate index"
+                except pymysql.err.OperationalError as e:
+                    if e.args[0] == 1061:  # Код ошибки для "Duplicate key name"
                         pass  # Игнорируем, если индекс уже существует
                     else:
                         raise  # Перебрасываем другие ошибки
@@ -193,3 +193,24 @@ async def cleanup_expired_bans(pool: PoolType) -> None:
                 )
                 if cur.rowcount > 0:
                     logging.info(f"Removed expired bans: {cur.rowcount}")
+
+async def delete_user_from_db(pool: PoolType, user_id: int) -> None:
+    """Удаление пользователя из таблиц passed_users и banned_users."""
+    if config.DB_TYPE == "postgres":
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM passed_users WHERE user_id = $1", user_id
+            )
+            await conn.execute(
+                "DELETE FROM banned_users WHERE user_id = $1", user_id
+            )
+    elif config.DB_TYPE == "mysql":
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM passed_users WHERE user_id = %s", (user_id,)
+                )
+                await cur.execute(
+                    "DELETE FROM banned_users WHERE user_id = %s", (user_id,)
+                )
+    logging.info(f"User {user_id} deleted from database")
