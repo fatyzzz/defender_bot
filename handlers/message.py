@@ -1,8 +1,8 @@
-import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from .states import UserState
+
 from config import config
+from .states import UserState
 
 
 async def message_handler(message: types.Message, state: FSMContext):

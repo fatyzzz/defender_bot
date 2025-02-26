@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-
+from config import config
 from aiogram import Bot
 from aiogram.types import ChatPermissions
 
@@ -12,7 +12,7 @@ async def ban_user_after_timeout(
     bot: Bot, chat_id: int, user_id: int, pool: PoolType
 ) -> None:
     """Мут пользователя на сутки, запись в БД, затем бан и анбан через сутки."""
-    mute_duration = 86400  # 24 часа в секундах
+    mute_duration = config.MUTE_DURATION  # 24 часа в секундах
     until = datetime.now() + timedelta(seconds=mute_duration)
 
     try:
@@ -32,10 +32,12 @@ async def ban_user_after_timeout(
             try:
                 await bot.ban_chat_member(chat_id, user_id)  # Бан
                 logging.info(f"User {user_id} banned from chat {chat_id}")
-                await asyncio.sleep(2)  # Пауза 2 секунды перед анбаном
+                await asyncio.sleep(config.UNBAN_DELAY)  # Пауза 2 секунды перед анбаном
                 await bot.unban_chat_member(chat_id, user_id)  # Анбан
                 logging.info(f"User {user_id} unbanned from chat {chat_id}")
-                await asyncio.sleep(5)  # Пауза 5 секунд перед удалением из БД
+                await asyncio.sleep(
+                    config.DB_DELETE_DELAY
+                )  # Пауза 5 секунд перед удалением из БД
                 await delete_user_from_db(pool, user_id)  # Удаление из БД
                 logging.info(f"User {user_id} removed from database after unban")
             except Exception as e:

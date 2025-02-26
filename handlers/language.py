@@ -9,8 +9,6 @@ from .quiz import start_quiz
 from .states import UserState
 from utils.moderation import ban_user_after_timeout
 
-LANGUAGE_SELECTION_TIMEOUT = 300  # 5 минут в секундах
-
 
 async def language_selection_handler(
     message: types.Message,
@@ -100,7 +98,7 @@ async def language_selection_timeout(
     pool: PoolType,
 ) -> None:
     """Обрабатывает таймаут для выбора языка."""
-    await asyncio.sleep(LANGUAGE_SELECTION_TIMEOUT)  # Ждем 5 минут
+    await asyncio.sleep(config.LANGUAGE_SELECTION_TIMEOUT)
     current_state = await state.get_state()
     if current_state == UserState.waiting_for_language:
         user_data = await state.get_data()

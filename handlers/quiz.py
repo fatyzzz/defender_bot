@@ -2,9 +2,11 @@ import asyncio
 import logging
 import random
 from typing import Optional
+
 from aiogram import Bot, types
-from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+
 from config import config, questions, dialogs
 from database import check_user_passed, check_user_banned, mark_user_passed, PoolType
 from utils.moderation import ban_user_after_timeout
@@ -43,7 +45,10 @@ async def group_message_handler(
 
 
 async def delete_message(
-    bot: Bot, chat_id: int, message_id: int, delay: int = 5
+    bot: Bot,
+    chat_id: int,
+    message_id: int,
+    delay: int = config.DEFAULT_MESSAGE_DELETE_DELAY,
 ) -> None:
     """Удаление сообщения с задержкой."""
     await asyncio.sleep(delay)
@@ -95,7 +100,7 @@ async def start_quiz(
     await state.update_data(quiz_message_id=msg.message_id, correct_index=correct_index)
 
     async def timer_task():
-        await asyncio.sleep(30)
+        await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)
         if await state.get_state() == UserState.answering_quiz:
             await timeout_handler(message, user, state, pool, thread_id)
 
@@ -169,7 +174,7 @@ async def quiz_callback_handler(
                 callback.message.bot,
                 callback.message.chat.id,
                 result_msg.message_id,
-                30,
+                config.MESSAGE_DELETE_DELAY_INCORRECT,
             )
         )
         await state.clear()
@@ -207,6 +212,11 @@ async def timeout_handler(
         asyncio.create_task(delete_message(message.bot, message.chat.id, msg_id))
     await message.bot.delete_message(message.chat.id, quiz_message_id)
     asyncio.create_task(
-        delete_message(message.bot, message.chat.id, timeout_msg.message_id, 60)
+        delete_message(
+            message.bot,
+            message.chat.id,
+            timeout_msg.message_id,
+            config.MESSAGE_DELETE_DELAY_TIMEOUT,
+        )
     )
     await state.clear()
