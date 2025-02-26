@@ -17,20 +17,12 @@ async def language_selection_handler(
     pool: PoolType,
 ) -> None:
     """Запрашивает у новых пользователей выбор языка с таймаутом."""
-    # Проверяем текущее состояние пользователя
+    # Проверяем текущее состояние
     current_state = await state.get_state()
-    if current_state == UserState.waiting_for_language:
-        # Если пользователь уже ждет выбора языка, удаляем его сообщение и выходим
-        try:
-            await bot.delete_message(message.chat.id, message.message_id)
-            logging.info(
-                f"Удалено сообщение {message.message_id} во время ожидания языка"
-            )
-        except TelegramBadRequest:
-            logging.warning(f"Не удалось удалить сообщение {message.message_id}")
-        return
+    if current_state in [UserState.waiting_for_language, UserState.answering_quiz]:
+        return  # Если уже в процессе, ничего не делаем
 
-    # Проверяем условия для запуска процесса выбора языка
+    # Проверяем условия для запуска выбора языка
     if (
         message.chat.id != config.ALLOWED_CHAT_ID
         or await check_user_passed(pool, message.from_user.id)
@@ -38,10 +30,12 @@ async def language_selection_handler(
     ):
         return
 
+    # Определяем thread_id, если есть
     thread_id = message.message_thread_id if message.message_thread_id else None
     user_mention = message.from_user.mention_html()
     text = dialogs["language_selection"].format(name=user_mention)
 
+    # Отправляем сообщение с выбором языка
     try:
         lang_msg = await bot.send_message(
             chat_id=message.chat.id,
@@ -58,7 +52,8 @@ async def language_selection_handler(
                             callback_data=f"lang_{message.from_user.id}_en",
                         ),
                         types.InlineKeyboardButton(
-                            text="中文", callback_data=f"lang_{message.from_user.id}_zh"
+                            text="中文",
+                            callback_data=f"lang_{message.from_user.id}_zh",
                         ),
                     ]
                 ]
@@ -78,10 +73,10 @@ async def language_selection_handler(
     await state.update_data(
         lang_message_id=lang_msg.message_id,
         thread_id=thread_id,
-        user_messages=[message.message_id],  # Сохраняем ID первого сообщения
+        user_messages=[message.message_id],
     )
 
-    # Запускаем таймаут
+    # Запускаем таймаут для выбора языка
     asyncio.create_task(
         language_selection_timeout(
             bot, state, message.chat.id, thread_id, message.from_user.id, pool

@@ -14,10 +14,6 @@ def setup_handlers(dp: Dispatcher, bot, pool) -> None:
         partial(group_message_handler, bot=bot, pool=pool),
         ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION),
     )
-    dp.message.register(
-        partial(language_selection_handler, bot=bot, pool=pool),
-        lambda m: m.chat.type in ["group", "supergroup"] and not m.from_user.is_bot,
-    )
     dp.callback_query.register(
         partial(language_callback_handler, pool=pool),
         lambda c: c.data.startswith("lang_"),
@@ -27,6 +23,6 @@ def setup_handlers(dp: Dispatcher, bot, pool) -> None:
         lambda c: c.data.startswith("quiz_"),
     )
     dp.message.register(
-        partial(message_handler),
+        partial(message_handler, bot=bot, pool=pool),
         lambda m: m.chat.type in ["group", "supergroup"] and not m.from_user.is_bot,
     )
