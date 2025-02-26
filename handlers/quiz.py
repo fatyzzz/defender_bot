@@ -97,7 +97,11 @@ async def start_quiz(
         return
 
     await state.set_state(UserState.answering_quiz)
-    await state.update_data(quiz_message_id=msg.message_id, correct_index=correct_index)
+    await state.update_data(
+        quiz_message_id=msg.message_id,
+        correct_index=correct_index,
+        user_messages=[message.message_id],  # Сохраняем первое сообщение
+    )
 
     async def timer_task():
         await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)
@@ -144,6 +148,7 @@ async def quiz_callback_handler(
             )
         )
         logging.info(f"User {callback.from_user.id} answered correctly")
+        # Первое сообщение остается в чате
     else:
         result_msg = await callback.message.bot.send_message(
             chat_id=callback.message.chat.id,
@@ -158,17 +163,19 @@ async def quiz_callback_handler(
                 callback.from_user.id,
                 pool,
             )
-            logging.info(
-                f"User {callback.from_user.id} processed by ban_user_after_timeout due to incorrect answer"
-            )
+            logging.info(f"User {callback.from_user.id} banned due to incorrect answer")
         except Exception as e:
-            logging.error(
-                f"Failed to process ban_user_after_timeout for user {callback.from_user.id}: {e}"
-            )
-        for msg_id in user_messages:
+            logging.error(f"Failed to ban user {callback.from_user.id}: {e}")
+
+        # Удаляем только первое сообщение пользователя
+        if user_messages:
+            first_msg_id = user_messages[0]
             asyncio.create_task(
-                delete_message(callback.message.bot, callback.message.chat.id, msg_id)
+                delete_message(
+                    callback.message.bot, callback.message.chat.id, first_msg_id
+                )
             )
+
         asyncio.create_task(
             delete_message(
                 callback.message.bot,
@@ -201,15 +208,15 @@ async def timeout_handler(
     )
     try:
         await ban_user_after_timeout(message.bot, message.chat.id, user.id, pool)
-        logging.info(
-            f"User {user.id} processed by ban_user_after_timeout due to quiz timeout"
-        )
+        logging.info(f"User {user.id} banned due to quiz timeout")
     except Exception as e:
-        logging.error(
-            f"Failed to process ban_user_after_timeout for user {user.id}: {e}"
-        )
-    for msg_id in user_messages:
-        asyncio.create_task(delete_message(message.bot, message.chat.id, msg_id))
+        logging.error(f"Failed to ban user {user.id}: {e}")
+
+    # Удаляем только первое сообщение пользователя
+    if user_messages:
+        first_msg_id = user_messages[0]
+        asyncio.create_task(delete_message(message.bot, message.chat.id, first_msg_id))
+
     await message.bot.delete_message(message.chat.id, quiz_message_id)
     asyncio.create_task(
         delete_message(
