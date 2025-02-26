@@ -6,6 +6,7 @@ from .quiz import group_message_handler, quiz_callback_handler
 from .start import start_handler
 from .message import message_handler
 
+
 def setup_handlers(dp: Dispatcher, bot, pool) -> None:
     """Регистрация хэндлеров."""
     dp.message.register(start_handler, Command(commands=["start"]))

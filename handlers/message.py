@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from .states import UserState
 from config import config
 
+
 async def message_handler(message: types.Message, state: FSMContext):
     """Удаление сообщений до выбора языка."""
     if message.from_user.is_bot or message.chat.id != config.ALLOWED_CHAT_ID:
