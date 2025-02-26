@@ -10,6 +10,7 @@ load_dotenv()
 
 class Config(BaseModel):
     """Конфигурация бота с валидацией через pydantic."""
+
     BOT_TOKEN: str
     DB_USER: str
     DB_PASSWORD: str

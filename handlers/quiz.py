@@ -23,7 +23,11 @@ async def get_thread_id(chat: types.Chat, thread_id: Optional[int]) -> Optional[
 
 
 async def group_message_handler(
-    update: types.ChatMemberUpdated, state: FSMContext, bot: Bot, pool: "asyncpg.Pool", **kwargs
+    update: types.ChatMemberUpdated,
+    state: FSMContext,
+    bot: Bot,
+    pool: "asyncpg.Pool",
+    **kwargs,
 ) -> None:
     """Обработка новых участников в группе."""
     # Проверяем, что это нужный чат
@@ -33,16 +37,22 @@ async def group_message_handler(
     user = update.new_chat_member.user
 
     # Явная проверка на вступление
-    if (update.old_chat_member.status not in ("left", "kicked") or
-        update.new_chat_member.status != "member"):
+    if (
+        update.old_chat_member.status not in ("left", "kicked")
+        or update.new_chat_member.status != "member"
+    ):
         logging.info(f"Skipping event for user {user.id}: not a join event")
         return
 
     # Минимальные проверки: бот, прошел викторину, забанен
-    if (user.is_bot or
-        await check_user_passed(pool, user.id) or
-        await check_user_banned(pool, user.id)):
-        logging.info(f"Skipping event for user {user.id}: bot or already passed or banned")
+    if (
+        user.is_bot
+        or await check_user_passed(pool, user.id)
+        or await check_user_banned(pool, user.id)
+    ):
+        logging.info(
+            f"Skipping event for user {user.id}: bot or already passed or banned"
+        )
         return
 
     # Проверка на дубликаты событий
@@ -50,22 +60,30 @@ async def group_message_handler(
     user_data = await state.get_data()
     last_update_id = user_data.get("last_update_id")
     if last_update_id == update_id:
-        logging.info(f"Duplicate event skipped for user {user.id}, update_id={update_id}")
+        logging.info(
+            f"Duplicate event skipped for user {user.id}, update_id={update_id}"
+        )
         return
 
     # Запускаем выбор языка
     from .language import language_selection_handler
+
     message = types.Message(
         message_id=0,
         chat=update.chat,
         from_user=user,
         date=update.date,
     )
-    logging.info(f"New member {user.id} joined, triggering language selection, update_id={update_id}")
+    logging.info(
+        f"New member {user.id} joined, triggering language selection, update_id={update_id}"
+    )
     await language_selection_handler(message, state, bot=bot, pool=pool)
     await state.update_data(last_update_id=update_id)
 
-async def delete_message(bot: Bot, chat_id: int, message_id: int, delay: int = 5) -> None:
+
+async def delete_message(
+    bot: Bot, chat_id: int, message_id: int, delay: int = 5
+) -> None:
     """Удаление сообщения с задержкой."""
     await asyncio.sleep(delay)
     try:
@@ -75,7 +93,11 @@ async def delete_message(bot: Bot, chat_id: int, message_id: int, delay: int = 5
 
 
 async def start_quiz(
-    message: types.Message, user: types.User, state: FSMContext, pool: "asyncpg.Pool", orig_message_id: int
+    message: types.Message,
+    user: types.User,
+    state: FSMContext,
+    pool: "asyncpg.Pool",
+    orig_message_id: int,
 ) -> None:
     """Запуск викторины."""
     user_data = await state.get_data()
@@ -87,10 +109,16 @@ async def start_quiz(
     correct_index = indices.index(question["correct_index"])
 
     keyboard = [
-        [types.InlineKeyboardButton(text=answers[i], callback_data=f"quiz_{user.id}_{j}_{correct_index}")]
+        [
+            types.InlineKeyboardButton(
+                text=answers[i], callback_data=f"quiz_{user.id}_{j}_{correct_index}"
+            )
+        ]
         for j, i in enumerate(indices)
     ]
-    thread_id = await get_thread_id(message.chat, message.message_thread_id or config.FALLBACK_THREAD_ID)
+    thread_id = await get_thread_id(
+        message.chat, message.message_thread_id or config.FALLBACK_THREAD_ID
+    )
 
     try:
         # Пробуем отправить сообщение с thread_id, если он есть и валиден
@@ -101,7 +129,9 @@ async def start_quiz(
             message_thread_id=thread_id,
             parse_mode="HTML",
         )
-        logging.info(f"Message sent to chat {message.chat.id} with thread_id={thread_id}")
+        logging.info(
+            f"Message sent to chat {message.chat.id} with thread_id={thread_id}"
+        )
     except TelegramBadRequest as e:
         logging.warning(f"Failed to send message with thread_id={thread_id}: {e}")
         # Повторная попытка без thread_id
@@ -163,7 +193,9 @@ async def quiz_callback_handler(
             parse_mode="HTML",
         )
         await mark_user_passed(pool, callback.from_user.id)
-        logging.info(f"Correct answer reported in chat {callback.message.chat.id} with thread_id={thread_id}")
+        logging.info(
+            f"Correct answer reported in chat {callback.message.chat.id} with thread_id={thread_id}"
+        )
     else:
         result_msg = await callback.message.bot.send_message(
             chat_id=callback.message.chat.id,
@@ -171,17 +203,33 @@ async def quiz_callback_handler(
             message_thread_id=thread_id,
             parse_mode="HTML",
         )
-        await ban_user(callback.message.bot, callback.message.chat.id, callback.from_user.id, pool)
+        await ban_user(
+            callback.message.bot, callback.message.chat.id, callback.from_user.id, pool
+        )
         if orig_message_id:
-            asyncio.create_task(delete_message(callback.message.bot, callback.message.chat.id, orig_message_id))
-        logging.info(f"Incorrect answer reported in chat {callback.message.chat.id} with thread_id={thread_id}")
+            asyncio.create_task(
+                delete_message(
+                    callback.message.bot, callback.message.chat.id, orig_message_id
+                )
+            )
+        logging.info(
+            f"Incorrect answer reported in chat {callback.message.chat.id} with thread_id={thread_id}"
+        )
 
-    asyncio.create_task(delete_message(callback.message.bot, callback.message.chat.id, result_msg.message_id, 30))
+    asyncio.create_task(
+        delete_message(
+            callback.message.bot, callback.message.chat.id, result_msg.message_id, 30
+        )
+    )
     await state.clear()
 
 
 async def timeout_handler(
-    message: types.Message, user: types.User, state: FSMContext, pool: "asyncpg.Pool", orig_message_id: int
+    message: types.Message,
+    user: types.User,
+    state: FSMContext,
+    pool: "asyncpg.Pool",
+    orig_message_id: int,
 ) -> None:
     """Обработка таймаута викторины."""
     user_data = await state.get_data()
@@ -189,11 +237,17 @@ async def timeout_handler(
     quiz_message_id = user_data["quiz_message_id"]
 
     timeout_msg = await message.bot.send_message(
-        message.chat.id, f"⏰ {dialogs['timeout'][lang].format(name=user.mention_html())}", parse_mode="HTML"
+        message.chat.id,
+        f"⏰ {dialogs['timeout'][lang].format(name=user.mention_html())}",
+        parse_mode="HTML",
     )
     await ban_user(message.bot, message.chat.id, user.id, pool)
     if orig_message_id:
-        asyncio.create_task(delete_message(message.bot, message.chat.id, orig_message_id))
+        asyncio.create_task(
+            delete_message(message.bot, message.chat.id, orig_message_id)
+        )
     await message.bot.delete_message(message.chat.id, quiz_message_id)
-    asyncio.create_task(delete_message(message.bot, message.chat.id, timeout_msg.message_id, 60))
+    asyncio.create_task(
+        delete_message(message.bot, message.chat.id, timeout_msg.message_id, 60)
+    )
     await state.clear()

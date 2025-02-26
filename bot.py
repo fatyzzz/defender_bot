@@ -14,11 +14,14 @@ from utils.logger import setup_logging
 
 class ErrorMiddleware(BaseMiddleware):
     """Middleware для обработки ошибок."""
+
     async def __call__(self, handler, event, data: dict) -> None:
         try:
             return await handler(event, data)
         except Exception as e:
-            logging.error(f"Unhandled exception for update {event.update_id}: {e}", exc_info=True)
+            logging.error(
+                f"Unhandled exception for update {event.update_id}: {e}", exc_info=True
+            )
             raise
 
 
