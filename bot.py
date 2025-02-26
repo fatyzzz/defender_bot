@@ -46,7 +46,7 @@ async def main() -> None:
     async def cleanup_task():
         while True:
             await cleanup_expired_bans(pool)
-            await asyncio.sleep(300)  # Проверка каждые 5 минут
+            await asyncio.sleep(120)  # Проверка каждые 2 минуты
 
     asyncio.create_task(cleanup_task())
 
