@@ -4,3 +4,4 @@ psycopg2-binary==2.9.10
 asyncpg==0.30.0
 pydantic==2.9.2
 aiomysql==0.2.0
+cryptography-44.0.1
