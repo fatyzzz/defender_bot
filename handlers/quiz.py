@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 
 from config import config, questions, dialogs
-from database import check_user_passed, check_user_banned, mark_user_passed
+from database import check_user_passed, check_user_banned, mark_user_passed, PoolType
 from utils.moderation import ban_user
 from .states import UserState
 
@@ -26,17 +26,15 @@ async def group_message_handler(
     update: types.ChatMemberUpdated,
     state: FSMContext,
     bot: Bot,
-    pool: "asyncpg.Pool",
+    pool: PoolType,  # Изменено на PoolType для поддержки MySQL и PostgreSQL
     **kwargs,
 ) -> None:
     """Обработка новых участников в группе."""
-    # Проверяем, что это нужный чат
     if update.chat.id != config.ALLOWED_CHAT_ID:
         return
 
     user = update.new_chat_member.user
 
-    # Явная проверка на вступление
     if (
         update.old_chat_member.status not in ("left", "kicked")
         or update.new_chat_member.status != "member"
@@ -44,7 +42,6 @@ async def group_message_handler(
         logging.info(f"Skipping event for user {user.id}: not a join event")
         return
 
-    # Минимальные проверки: бот, прошел викторину, забанен
     if (
         user.is_bot
         or await check_user_passed(pool, user.id)
@@ -55,7 +52,6 @@ async def group_message_handler(
         )
         return
 
-    # Проверка на дубликаты событий
     update_id = kwargs.get("update_id")
     user_data = await state.get_data()
     last_update_id = user_data.get("last_update_id")
@@ -65,7 +61,6 @@ async def group_message_handler(
         )
         return
 
-    # Запускаем выбор языка
     from .language import language_selection_handler
 
     message = types.Message(
@@ -96,7 +91,7 @@ async def start_quiz(
     message: types.Message,
     user: types.User,
     state: FSMContext,
-    pool: "asyncpg.Pool",
+    pool: PoolType,  # Изменено на PoolType
     orig_message_id: int,
 ) -> None:
     """Запуск викторины."""
@@ -121,7 +116,6 @@ async def start_quiz(
     )
 
     try:
-        # Пробуем отправить сообщение с thread_id, если он есть и валиден
         msg = await message.bot.send_message(
             chat_id=message.chat.id,
             text=f"{dialogs['greeting'][lang].format(name=user.mention_html())}\n<b>{question['question'][lang]}</b>",
@@ -134,7 +128,6 @@ async def start_quiz(
         )
     except TelegramBadRequest as e:
         logging.warning(f"Failed to send message with thread_id={thread_id}: {e}")
-        # Повторная попытка без thread_id
         msg = await message.bot.send_message(
             chat_id=message.chat.id,
             text=f"{dialogs['greeting'][lang].format(name=user.mention_html())}\n<b>{question['question'][lang]}</b>",
@@ -170,7 +163,9 @@ async def start_quiz(
 
 
 async def quiz_callback_handler(
-    callback: types.CallbackQuery, state: FSMContext, pool: "asyncpg.Pool"
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    pool: PoolType,  # Изменено на PoolType
 ) -> None:
     """Обработка ответа на викторину."""
     data = callback.data.split("_")
@@ -182,7 +177,7 @@ async def quiz_callback_handler(
     lang = user_data["language"]
     quiz_message_id = user_data["quiz_message_id"]
     orig_message_id = user_data["orig_message_id"]
-    thread_id = user_data.get("thread_id")  # Получаем thread_id из состояния
+    thread_id = user_data.get("thread_id")
 
     await callback.message.bot.delete_message(callback.message.chat.id, quiz_message_id)
     if selected_idx == correct_idx:
@@ -228,7 +223,7 @@ async def timeout_handler(
     message: types.Message,
     user: types.User,
     state: FSMContext,
-    pool: "asyncpg.Pool",
+    pool: PoolType,  # Изменено на PoolType
     orig_message_id: int,
 ) -> None:
     """Обработка таймаута викторины."""

@@ -5,13 +5,16 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 
 from config import config, dialogs
-from database import check_user_passed
+from database import check_user_passed, PoolType  # Добавляем импорт PoolType
 from .quiz import start_quiz, get_thread_id
 from .states import UserState
 
 
 async def language_selection_handler(
-    message: types.Message, state: FSMContext, bot: Bot, pool: "asyncpg.Pool"
+    message: types.Message,
+    state: FSMContext,
+    bot: Bot,
+    pool: PoolType,  # Используем PoolType
 ) -> None:
     """Предложение выбора языка для новых пользователей."""
     if message.chat.id != config.ALLOWED_CHAT_ID or await check_user_passed(
@@ -88,7 +91,9 @@ async def language_selection_handler(
 
 
 async def language_callback_handler(
-    callback: types.CallbackQuery, state: FSMContext, pool: "asyncpg.Pool"
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    pool: PoolType,  # Используем PoolType
 ) -> None:
     """Обработка выбора языка."""
     data = callback.data.split("_")
