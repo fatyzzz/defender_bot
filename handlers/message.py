@@ -9,7 +9,9 @@ from .states import UserState
 from .language import language_selection_handler
 
 
-async def message_handler(message: types.Message, state: FSMContext, bot: Bot, pool) -> None:
+async def message_handler(
+    message: types.Message, state: FSMContext, bot: Bot, pool
+) -> None:
     """Обработка сообщений пользователя."""
     if message.from_user.is_bot or message.chat.id != config.ALLOWED_CHAT_ID:
         return
@@ -25,7 +27,9 @@ async def message_handler(message: types.Message, state: FSMContext, bot: Bot, p
     if current_state == UserState.waiting_for_language:
         try:
             await bot.delete_message(message.chat.id, message.message_id)
-            logging.info(f"Удалено сообщение {message.message_id} во время выбора языка")
+            logging.info(
+                f"Удалено сообщение {message.message_id} во время выбора языка"
+            )
         except TelegramBadRequest:
             logging.warning(f"Не удалось удалить сообщение {message.message_id}")
         return

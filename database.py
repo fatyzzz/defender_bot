@@ -222,8 +222,12 @@ async def delete_user_from_db(pool: PoolType, user_id: int) -> None:
     elif config.DB_TYPE == "mysql":
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute("DELETE FROM passed_users WHERE user_id = %s", (user_id,))
-                await cur.execute("DELETE FROM banned_users WHERE user_id = %s", (user_id,))
+                await cur.execute(
+                    "DELETE FROM passed_users WHERE user_id = %s", (user_id,)
+                )
+                await cur.execute(
+                    "DELETE FROM banned_users WHERE user_id = %s", (user_id,)
+                )
     logging.info(f"User {user_id} deleted from database")
 
 
@@ -298,4 +302,6 @@ async def remove_active_poll(pool: PoolType, poll_id: str) -> None:
     elif config.DB_TYPE == "mysql":
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute("DELETE FROM active_polls WHERE poll_id = %s", (poll_id,))
+                await cur.execute(
+                    "DELETE FROM active_polls WHERE poll_id = %s", (poll_id,)
+                )

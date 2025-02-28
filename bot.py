@@ -19,7 +19,9 @@ class ErrorMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
-            logging.error(f"Unhandled exception for update {event.update_id}: {e}", exc_info=True)
+            logging.error(
+                f"Unhandled exception for update {event.update_id}: {e}", exc_info=True
+            )
             raise
 
 
@@ -67,7 +69,13 @@ async def main() -> None:
     asyncio.create_task(cleanup_task())
 
     # Указываем все типы обновлений явно
-    allowed_updates = ["message", "chat_member", "callback_query", "poll", "poll_answer"]
+    allowed_updates = [
+        "message",
+        "chat_member",
+        "callback_query",
+        "poll",
+        "poll_answer",
+    ]
     try:
         await dp.start_polling(bot, allowed_updates=allowed_updates)
     finally:

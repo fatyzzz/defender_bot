@@ -93,15 +93,34 @@ async def poll_answer_handler(
         greeting_message_id = user_data.get("greeting_message_id")
         for msg_id in bot_messages:
             if group_chat_id:
-                asyncio.create_task(delete_message(bot, group_chat_id, msg_id, config.MESSAGE_DELETE_DELAY_CORRECT))
+                asyncio.create_task(
+                    delete_message(
+                        bot, group_chat_id, msg_id, config.MESSAGE_DELETE_DELAY_CORRECT
+                    )
+                )
         if greeting_message_id:
-            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_CORRECT))
-        asyncio.create_task(delete_message(bot, chat_id, result_msg.message_id, config.MESSAGE_DELETE_DELAY_CORRECT))
+            asyncio.create_task(
+                delete_message(
+                    bot,
+                    chat_id,
+                    greeting_message_id,
+                    config.MESSAGE_DELETE_DELAY_CORRECT,
+                )
+            )
+        asyncio.create_task(
+            delete_message(
+                bot, chat_id, result_msg.message_id, config.MESSAGE_DELETE_DELAY_CORRECT
+            )
+        )
         logging.info(f"Пользователь {user_id} ответил правильно в ЛС")
 
-        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        group_state = dp.fsm.get_context(
+            bot=bot, chat_id=group_chat_id, user_id=user_id
+        )
         await group_state.set_state(UserState.completed)
-        logging.info(f"Установлено состояние completed для пользователя {user_id} в чате {group_chat_id}")
+        logging.info(
+            f"Установлено состояние completed для пользователя {user_id} в чате {group_chat_id}"
+        )
     else:
         combined_message = (
             f"❌ {dialogs['incorrect'][lang].format(name=poll_answer.user.mention_html())} "
@@ -119,23 +138,47 @@ async def poll_answer_handler(
         greeting_message_id = user_data.get("greeting_message_id")
 
         if first_message_id and group_chat_id:
-            asyncio.create_task(delete_message(bot, group_chat_id, first_message_id, delay=0))
+            asyncio.create_task(
+                delete_message(bot, group_chat_id, first_message_id, delay=0)
+            )
         for msg_id in bot_messages:
             if group_chat_id:
                 asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
         if greeting_message_id:
-            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
+            asyncio.create_task(
+                delete_message(
+                    bot,
+                    chat_id,
+                    greeting_message_id,
+                    config.MESSAGE_DELETE_DELAY_INCORRECT,
+                )
+            )
         if quiz_message_id:
-            asyncio.create_task(delete_message(bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
-        asyncio.create_task(delete_message(bot, chat_id, result_msg.message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
+            asyncio.create_task(
+                delete_message(
+                    bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_INCORRECT
+                )
+            )
+        asyncio.create_task(
+            delete_message(
+                bot,
+                chat_id,
+                result_msg.message_id,
+                config.MESSAGE_DELETE_DELAY_INCORRECT,
+            )
+        )
 
         if group_chat_id:
             await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
             logging.info(f"Пользователь {user_id} забанен из-за неправильного ответа")
 
-        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        group_state = dp.fsm.get_context(
+            bot=bot, chat_id=group_chat_id, user_id=user_id
+        )
         await group_state.clear()
-        logging.info(f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}")
+        logging.info(
+            f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}"
+        )
         await state.clear()
 
     try:
@@ -184,23 +227,49 @@ async def poll_handler(
         greeting_message_id = user_data.get("greeting_message_id")
 
         if first_message_id and group_chat_id:
-            asyncio.create_task(delete_message(bot, group_chat_id, first_message_id, delay=0))
+            asyncio.create_task(
+                delete_message(bot, group_chat_id, first_message_id, delay=0)
+            )
         for msg_id in bot_messages:
             if group_chat_id:
                 asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
         if greeting_message_id:
-            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+            asyncio.create_task(
+                delete_message(
+                    bot,
+                    chat_id,
+                    greeting_message_id,
+                    config.MESSAGE_DELETE_DELAY_TIMEOUT,
+                )
+            )
         if quiz_message_id:
-            asyncio.create_task(delete_message(bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
-        asyncio.create_task(delete_message(bot, chat_id, timeout_msg.message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+            asyncio.create_task(
+                delete_message(
+                    bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT
+                )
+            )
+        asyncio.create_task(
+            delete_message(
+                bot,
+                chat_id,
+                timeout_msg.message_id,
+                config.MESSAGE_DELETE_DELAY_TIMEOUT,
+            )
+        )
 
         if group_chat_id:
             await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
-            logging.info(f"Пользователь {user_id} забанен из-за таймаута опроса (запасной обработчик)")
+            logging.info(
+                f"Пользователь {user_id} забанен из-за таймаута опроса (запасной обработчик)"
+            )
 
-        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        group_state = dp.fsm.get_context(
+            bot=bot, chat_id=group_chat_id, user_id=user_id
+        )
         await group_state.clear()
-        logging.info(f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}")
+        logging.info(
+            f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}"
+        )
         await state.clear()
 
     try:

@@ -59,7 +59,9 @@ async def language_selection_handler(
             message_thread_id=thread_id,
             parse_mode="HTML",
         )
-        logging.info(f"Language selection sent to chat {message.chat.id}, thread_id={thread_id}")
+        logging.info(
+            f"Language selection sent to chat {message.chat.id}, thread_id={thread_id}"
+        )
     except TelegramBadRequest as e:
         logging.warning(f"Failed to send language selection: {e}")
         return
@@ -74,7 +76,9 @@ async def language_selection_handler(
     )
 
     asyncio.create_task(
-        language_selection_timeout(bot, state, message.chat.id, thread_id, message.from_user.id, pool)
+        language_selection_timeout(
+            bot, state, message.chat.id, thread_id, message.from_user.id, pool
+        )
     )
 
 
@@ -99,7 +103,7 @@ async def language_selection_timeout(
 
     # Отправляем сообщение о таймауте в чат
     timeout_text = dialogs["language_timeout"]["ru"].format(
-        name=f'<a href=\"tg://user?id={user_id}\">{user_id}</a>'
+        name=f'<a href="tg://user?id={user_id}">{user_id}</a>'
     )
     timeout_msg = await bot.send_message(
         chat_id=chat_id,
@@ -115,7 +119,11 @@ async def language_selection_timeout(
         asyncio.create_task(delete_message(bot, chat_id, lang_message_id, delay=0))
     for msg_id in bot_messages:
         asyncio.create_task(delete_message(bot, chat_id, msg_id, delay=0))
-    asyncio.create_task(delete_message(bot, chat_id, timeout_msg.message_id, config.DEFAULT_MESSAGE_DELETE_DELAY))
+    asyncio.create_task(
+        delete_message(
+            bot, chat_id, timeout_msg.message_id, config.DEFAULT_MESSAGE_DELETE_DELAY
+        )
+    )
 
     # Блокируем пользователя
     await ban_user_after_timeout(bot, chat_id, user_id, pool)
@@ -179,6 +187,10 @@ async def language_callback_handler(
 
     # Удаляем сообщение выбора языка
     try:
-        await callback.message.bot.delete_message(group_chat_id, user_data["lang_message_id"])
+        await callback.message.bot.delete_message(
+            group_chat_id, user_data["lang_message_id"]
+        )
     except TelegramBadRequest:
-        logging.warning(f"Не удалось удалить сообщение выбора языка {user_data['lang_message_id']}")
+        logging.warning(
+            f"Не удалось удалить сообщение выбора языка {user_data['lang_message_id']}"
+        )
