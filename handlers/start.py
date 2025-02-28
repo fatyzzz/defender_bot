@@ -11,7 +11,9 @@ from database import PoolType, add_active_poll
 from handlers.states import UserState
 
 
-async def start_handler(message: types.Message, state: FSMContext, bot: Bot, pool: PoolType, dp) -> None:
+async def start_handler(
+    message: types.Message, state: FSMContext, bot: Bot, pool: PoolType, dp
+) -> None:
     """Обработка команды /start в ЛС."""
     if message.chat.type != "private":
         return
@@ -28,7 +30,9 @@ async def start_handler(message: types.Message, state: FSMContext, bot: Bot, poo
                     await message.reply("Этот опрос не для вас.")
                     return
                 # Копируем данные из группового состояния в PM состояние
-                group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+                group_state = dp.fsm.get_context(
+                    bot=bot, chat_id=group_chat_id, user_id=user_id
+                )
                 group_data = await group_state.get_data()
                 first_message_id = group_data.get("first_message_id")
                 bot_messages = group_data.get("bot_messages", [])
@@ -42,12 +46,16 @@ async def start_handler(message: types.Message, state: FSMContext, bot: Bot, poo
             except ValueError:
                 await message.reply("Неверный формат команды.")
         else:
-            await message.reply("Неверный формат команды. Используйте /quiz для начала опроса.")
+            await message.reply(
+                "Неверный формат команды. Используйте /quiz для начала опроса."
+            )
     else:
         await message.reply("Добро пожаловать! Используйте /quiz для начала опроса.")
 
 
-async def send_poll_to_pm(message: types.Message, state: FSMContext, bot: Bot, pool: PoolType, dp) -> None:
+async def send_poll_to_pm(
+    message: types.Message, state: FSMContext, bot: Bot, pool: PoolType, dp
+) -> None:
     """Отправляет опрос в ЛС пользователя и запускает таймер."""
     user_data = await state.get_data()
     lang = user_data.get("language", "en")
@@ -61,7 +69,9 @@ async def send_poll_to_pm(message: types.Message, state: FSMContext, bot: Bot, p
     new_correct_index = indices.index(correct_index)
 
     # Отправляем приветственное сообщение отдельно
-    greeting_text = dialogs["greeting"][lang].format(name=message.from_user.mention_html())
+    greeting_text = dialogs["greeting"][lang].format(
+        name=message.from_user.mention_html()
+    )
     try:
         greeting_msg = await bot.send_message(
             chat_id=message.from_user.id,
@@ -99,7 +109,9 @@ async def send_poll_to_pm(message: types.Message, state: FSMContext, bot: Bot, p
         poll.message_id,
         None,  # thread_id в ЛС не нужен
     )
-    logging.info(f"Опрос {poll.poll.id} зарегистрирован для пользователя {message.from_user.id}")
+    logging.info(
+        f"Опрос {poll.poll.id} зарегистрирован для пользователя {message.from_user.id}"
+    )
 
     # Обновляем состояние с учётом двух сообщений
     await state.set_state(UserState.answering_quiz)
@@ -117,7 +129,9 @@ async def send_poll_to_pm(message: types.Message, state: FSMContext, bot: Bot, p
     asyncio.create_task(check_poll_timeout(bot, state, message.from_user.id, dp, pool))
 
 
-async def check_poll_timeout(bot: Bot, state: FSMContext, user_id: int, dp, pool: PoolType) -> None:
+async def check_poll_timeout(
+    bot: Bot, state: FSMContext, user_id: int, dp, pool: PoolType
+) -> None:
     """Проверяет, ответил ли пользователь на опрос за отведенное время."""
     await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)  # Ждём 30 секунд
     user_data = await state.get_data()
@@ -144,30 +158,55 @@ async def check_poll_timeout(bot: Bot, state: FSMContext, user_id: int, dp, pool
         # Моментально удаляем сообщения в чате
         if first_message_id and group_chat_id:
             from utils.message_utils import delete_message
-            asyncio.create_task(delete_message(bot, group_chat_id, first_message_id, delay=0))
+
+            asyncio.create_task(
+                delete_message(bot, group_chat_id, first_message_id, delay=0)
+            )
         for msg_id in bot_messages:
             if group_chat_id:
                 asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
 
         # Удаляем сообщения в ЛС с задержкой
         if greeting_message_id:
-            asyncio.create_task(delete_message(bot, user_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+            asyncio.create_task(
+                delete_message(
+                    bot,
+                    user_id,
+                    greeting_message_id,
+                    config.MESSAGE_DELETE_DELAY_TIMEOUT,
+                )
+            )
         if quiz_message_id:
-            asyncio.create_task(delete_message(bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
-        asyncio.create_task(delete_message(bot, user_id, timeout_msg.message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+            asyncio.create_task(
+                delete_message(
+                    bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT
+                )
+            )
+        asyncio.create_task(
+            delete_message(
+                bot,
+                user_id,
+                timeout_msg.message_id,
+                config.MESSAGE_DELETE_DELAY_TIMEOUT,
+            )
+        )
 
         # Баним пользователя
         if group_chat_id:
             from utils.moderation import ban_user_after_timeout
+
             await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
             logging.info(f"Пользователь {user_id} забанен из-за таймаута опроса")
 
         # Очищаем состояния
-        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        group_state = dp.fsm.get_context(
+            bot=bot, chat_id=group_chat_id, user_id=user_id
+        )
         await group_state.clear()
         await state.clear()
 
         # Удаляем опрос из базы
         if poll_id:
             from database import remove_active_poll
+
             await remove_active_poll(pool, poll_id)

@@ -9,17 +9,16 @@ from config import config
 from database import ban_user_in_db, PoolType, delete_user_from_db
 
 
-async def ban_user_after_timeout(bot: Bot, chat_id: int, user_id: int, pool: PoolType) -> None:
+async def ban_user_after_timeout(
+    bot: Bot, chat_id: int, user_id: int, pool: PoolType
+) -> None:
     """Мут пользователя на сутки, запись в БД, затем бан и анбан через сутки."""
     mute_duration = config.MUTE_DURATION
     until = datetime.now() + timedelta(seconds=mute_duration)
 
     try:
         await bot.restrict_chat_member(
-            chat_id,
-            user_id,
-            ChatPermissions(can_send_messages=False),
-            until_date=until
+            chat_id, user_id, ChatPermissions(can_send_messages=False), until_date=until
         )
         logging.info(f"Пользователь {user_id} замьючен на 24 часа в чате {chat_id}")
 
