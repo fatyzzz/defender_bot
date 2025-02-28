@@ -1,13 +1,15 @@
 import asyncio
 import logging
+
 from aiogram import Bot, types
-from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+
 from config import config, dialogs
 from database import check_user_passed, PoolType
-from .quiz import start_quiz
 from .states import UserState
 from utils.moderation import ban_user_after_timeout
+from utils.message_utils import delete_message
 
 
 async def language_selection_handler(
@@ -17,12 +19,10 @@ async def language_selection_handler(
     pool: PoolType,
 ) -> None:
     """Запрашивает у новых пользователей выбор языка с таймаутом."""
-    # Проверяем текущее состояние
     current_state = await state.get_state()
     if current_state in [UserState.waiting_for_language, UserState.answering_quiz]:
-        return  # Если уже в процессе, ничего не делаем
+        return
 
-    # Проверяем условия для запуска выбора языка
     if (
         message.chat.id != config.ALLOWED_CHAT_ID
         or await check_user_passed(pool, message.from_user.id)
@@ -30,12 +30,10 @@ async def language_selection_handler(
     ):
         return
 
-    # Определяем thread_id, если есть
     thread_id = message.message_thread_id if message.message_thread_id else None
     user_mention = message.from_user.mention_html()
     text = dialogs["language_selection"].format(name=user_mention)
 
-    # Отправляем сообщение с выбором языка
     try:
         lang_msg = await bot.send_message(
             chat_id=message.chat.id,
@@ -61,26 +59,22 @@ async def language_selection_handler(
             message_thread_id=thread_id,
             parse_mode="HTML",
         )
-        logging.info(
-            f"Сообщение о выборе языка отправлено в чат {message.chat.id}, thread_id={thread_id}"
-        )
+        logging.info(f"Language selection sent to chat {message.chat.id}, thread_id={thread_id}")
     except TelegramBadRequest as e:
-        logging.warning(f"Не удалось отправить сообщение о выборе языка: {e}")
+        logging.warning(f"Failed to send language selection: {e}")
         return
 
-    # Устанавливаем состояние и сохраняем данные
+    # Сохраняем данные в состоянии
     await state.set_state(UserState.waiting_for_language)
     await state.update_data(
         lang_message_id=lang_msg.message_id,
         thread_id=thread_id,
-        user_messages=[message.message_id],
+        first_message_id=message.message_id,
+        bot_messages=[lang_msg.message_id],
     )
 
-    # Запускаем таймаут для выбора языка
     asyncio.create_task(
-        language_selection_timeout(
-            bot, state, message.chat.id, thread_id, message.from_user.id, pool
-        )
+        language_selection_timeout(bot, state, message.chat.id, thread_id, message.from_user.id, pool)
     )
 
 
@@ -95,34 +89,38 @@ async def language_selection_timeout(
     """Обрабатывает таймаут для выбора языка."""
     await asyncio.sleep(config.LANGUAGE_SELECTION_TIMEOUT)
     current_state = await state.get_state()
-    if current_state == UserState.waiting_for_language:
-        user_data = await state.get_data()
-        lang_message_id = user_data.get("lang_message_id")
-        user_messages = user_data.get("user_messages", [])
+    if current_state != UserState.waiting_for_language:
+        return
 
-        # Удаляем сообщение о выборе языка
-        if lang_message_id:
-            try:
-                await bot.delete_message(chat_id, lang_message_id)
-                logging.info(f"Удалено сообщение о выборе языка {lang_message_id}")
-            except TelegramBadRequest:
-                logging.warning(f"Не удалось удалить сообщение {lang_message_id}")
+    user_data = await state.get_data()
+    lang_message_id = user_data.get("lang_message_id")
+    first_message_id = user_data.get("first_message_id")
+    bot_messages = user_data.get("bot_messages", [])
 
-        # Удаляем все сообщения пользователя
-        for msg_id in user_messages:
-            try:
-                await bot.delete_message(chat_id, msg_id)
-                logging.info(f"Удалено сообщение пользователя {msg_id}")
-            except TelegramBadRequest:
-                logging.warning(f"Не удалось удалить сообщение {msg_id}")
+    # Отправляем сообщение о таймауте в чат
+    timeout_text = dialogs["language_timeout"]["ru"].format(
+        name=f'<a href=\"tg://user?id={user_id}\">{user_id}</a>'
+    )
+    timeout_msg = await bot.send_message(
+        chat_id=chat_id,
+        text=timeout_text,
+        parse_mode="HTML",
+        message_thread_id=thread_id,
+    )
 
-        try:
-            await ban_user_after_timeout(bot, chat_id, user_id, pool)
-            logging.info(f"Пользователь {user_id} забанен из-за таймаута")
-        except Exception as e:
-            logging.error(f"Не удалось забанить пользователя {user_id}: {e}")
+    # Моментально удаляем сообщения в чате
+    if first_message_id:
+        asyncio.create_task(delete_message(bot, chat_id, first_message_id, delay=0))
+    if lang_message_id:
+        asyncio.create_task(delete_message(bot, chat_id, lang_message_id, delay=0))
+    for msg_id in bot_messages:
+        asyncio.create_task(delete_message(bot, chat_id, msg_id, delay=0))
+    asyncio.create_task(delete_message(bot, chat_id, timeout_msg.message_id, config.DEFAULT_MESSAGE_DELETE_DELAY))
 
-        await state.clear()
+    # Блокируем пользователя
+    await ban_user_after_timeout(bot, chat_id, user_id, pool)
+    logging.info(f"Пользователь {user_id} забанен из-за таймаута выбора языка")
+    await state.clear()
 
 
 async def language_callback_handler(
@@ -141,23 +139,46 @@ async def language_callback_handler(
     user_mention = callback.from_user.mention_html()
     confirmation_text = dialogs["language_set"][lang].format(name=user_mention)
 
-    logging.info(f"Выбран язык: {lang}, пользователь: {user_mention}")
+    logging.info(f"Language selected: {lang}, user: {user_mention}")
     try:
         await callback.message.edit_text(text=confirmation_text, parse_mode="HTML")
     except TelegramBadRequest as e:
-        logging.error(f"Не удалось отредактировать сообщение: {e}")
+        logging.error(f"Failed to edit message: {e}")
         await callback.message.edit_text(f"Ошибка при выборе языка: {lang}")
 
     await callback.answer()
 
     user_data = await state.get_data()
     thread_id = user_data.get("thread_id")
+    group_chat_id = callback.message.chat.id
 
-    # Удаляем сообщение с выбором языка
-    await callback.message.bot.delete_message(
-        callback.message.chat.id, user_data["lang_message_id"]
+    button_text = dialogs["quiz_button"][lang]
+    instruction_text = dialogs["quiz_instruction"][lang]
+
+    bot_username = (await callback.message.bot.get_me()).username
+    quiz_button_msg = await callback.message.bot.send_message(
+        chat_id=group_chat_id,
+        text=instruction_text,
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=button_text,
+                        url=f"https://t.me/{bot_username}?start=quiz_{callback.from_user.id}_{lang}_{group_chat_id}",
+                    )
+                ]
+            ]
+        ),
+        message_thread_id=thread_id,
     )
 
-    await start_quiz(
-        callback.message, callback.from_user, state, pool, thread_id=thread_id
-    )
+    # Обновляем bot_messages
+    bot_messages = user_data.get("bot_messages", [])
+    bot_messages.append(quiz_button_msg.message_id)
+    await state.update_data(bot_messages=bot_messages)
+
+    # Удаляем сообщение выбора языка
+    try:
+        await callback.message.bot.delete_message(group_chat_id, user_data["lang_message_id"])
+    except TelegramBadRequest:
+        logging.warning(f"Не удалось удалить сообщение выбора языка {user_data['lang_message_id']}")
