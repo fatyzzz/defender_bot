@@ -1,0 +1,26 @@
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql_defender_bot
+    environment:
+      MYSQL_ROOT_PASSWORD: 12341234
+      MYSQL_DATABASE: defender_bot
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_defender_bot
+    environment:
+      POSTGRES_PASSWORD: 12341234
+      POSTGRES_DB: defender_bot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  mysql_data:
+  postgres_data:

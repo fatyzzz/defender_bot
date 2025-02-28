@@ -1,15 +1,21 @@
 import asyncio
 import logging
-import random
-from typing import Optional
 
-from aiogram import Bot, types
+from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
 from config import config, questions, dialogs
-from database import check_user_passed, check_user_banned, mark_user_passed, PoolType
+from database import (
+    check_user_passed,
+    check_user_banned,
+    mark_user_passed,
+    PoolType,
+    get_active_poll,
+    remove_active_poll,
+)
 from utils.moderation import ban_user_after_timeout
+from utils.message_utils import delete_message
 from .states import UserState
 
 
@@ -41,189 +47,164 @@ async def group_message_handler(
         from_user=user,
         date=update.date,
     )
+    await state.update_data(first_message_id=message.message_id)
     await language_selection_handler(message, state, bot=bot, pool=pool)
 
 
-async def delete_message(
+async def poll_answer_handler(
+    poll_answer: types.PollAnswer,
+    dp: Dispatcher,
     bot: Bot,
-    chat_id: int,
-    message_id: int,
-    delay: int = config.DEFAULT_MESSAGE_DELETE_DELAY,
+    pool: PoolType,
 ) -> None:
-    """Удаление сообщения с задержкой."""
-    await asyncio.sleep(delay)
+    """Обработка ответа на опрос в ЛС."""
+    poll_id = poll_answer.poll_id
+    user_id = poll_answer.user.id
+
+    poll_data = await get_active_poll(pool, poll_id)
+    if not poll_data or poll_data["user_id"] != user_id:
+        return
+
+    chat_id = poll_data["chat_id"]
+    message_id = poll_data["message_id"]
+
+    state = dp.fsm.get_context(bot=bot, chat_id=chat_id, user_id=user_id)
+    user_data = await state.get_data()
+
+    if user_data.get("quiz_poll_id") != poll_id:
+        return
+
+    selected_option = poll_answer.option_ids[0]
+    correct_index = user_data["correct_index"]
+    lang = user_data["language"]
+
+    await state.update_data(has_answered=True)
+
+    if selected_option == correct_index:
+        await state.set_state(UserState.completed)
+        await mark_user_passed(pool, user_id)
+        result_msg = await bot.send_message(
+            chat_id=chat_id,
+            text=f"✅ {dialogs['correct'][lang]}",
+            parse_mode="HTML",
+        )
+        group_chat_id = user_data.get("group_chat_id")
+        bot_messages = user_data.get("bot_messages", [])
+        greeting_message_id = user_data.get("greeting_message_id")
+        for msg_id in bot_messages:
+            if group_chat_id:
+                asyncio.create_task(delete_message(bot, group_chat_id, msg_id, config.MESSAGE_DELETE_DELAY_CORRECT))
+        if greeting_message_id:
+            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_CORRECT))
+        asyncio.create_task(delete_message(bot, chat_id, result_msg.message_id, config.MESSAGE_DELETE_DELAY_CORRECT))
+        logging.info(f"Пользователь {user_id} ответил правильно в ЛС")
+
+        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        await group_state.set_state(UserState.completed)
+        logging.info(f"Установлено состояние completed для пользователя {user_id} в чате {group_chat_id}")
+    else:
+        combined_message = (
+            f"❌ {dialogs['incorrect'][lang].format(name=poll_answer.user.mention_html())} "
+            f"{dialogs['blocked_message'][lang]}"
+        )
+        result_msg = await bot.send_message(
+            chat_id=chat_id,
+            text=combined_message,
+            parse_mode="HTML",
+        )
+        group_chat_id = user_data.get("group_chat_id")
+        first_message_id = user_data.get("first_message_id")
+        bot_messages = user_data.get("bot_messages", [])
+        quiz_message_id = user_data.get("quiz_message_id")
+        greeting_message_id = user_data.get("greeting_message_id")
+
+        if first_message_id and group_chat_id:
+            asyncio.create_task(delete_message(bot, group_chat_id, first_message_id, delay=0))
+        for msg_id in bot_messages:
+            if group_chat_id:
+                asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
+        if greeting_message_id:
+            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
+        if quiz_message_id:
+            asyncio.create_task(delete_message(bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
+        asyncio.create_task(delete_message(bot, chat_id, result_msg.message_id, config.MESSAGE_DELETE_DELAY_INCORRECT))
+
+        if group_chat_id:
+            await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
+            logging.info(f"Пользователь {user_id} забанен из-за неправильного ответа")
+
+        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        await group_state.clear()
+        logging.info(f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}")
+        await state.clear()
+
     try:
         await bot.delete_message(chat_id, message_id)
     except TelegramBadRequest:
-        logging.warning(f"Failed to delete message {message_id}")
+        logging.warning(f"Не удалось удалить опрос {poll_id} в чате {chat_id}")
+    await remove_active_poll(pool, poll_id)
 
 
-async def start_quiz(
-    message: types.Message,
-    user: types.User,
-    state: FSMContext,
-    pool: PoolType,
-    thread_id: Optional[int] = None,
-) -> None:
-    """Запуск квиза."""
-    user_data = await state.get_data()
-    lang = user_data["language"]
-    question = random.choice(questions)
-    answers = question["answers"][lang]
-    indices = list(range(len(answers)))
-    random.shuffle(indices)
-    correct_index = indices.index(question["correct_index"])
-
-    keyboard = [
-        [
-            types.InlineKeyboardButton(
-                text=answers[i], callback_data=f"quiz_{user.id}_{j}_{correct_index}"
-            )
-        ]
-        for j, i in enumerate(indices)
-    ]
-
-    try:
-        msg = await message.bot.send_message(
-            chat_id=message.chat.id,
-            text=f"{dialogs['greeting'][lang].format(name=user.mention_html())}\n<b>{question['question'][lang]}</b>",
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
-            message_thread_id=thread_id,
-            parse_mode="HTML",
-        )
-        logging.info(f"Quiz sent to user {user.id} in chat {message.chat.id}")
-    except TelegramBadRequest as e:
-        logging.warning(f"Failed to send quiz: {e}")
-        return
-
-    await state.set_state(UserState.answering_quiz)
-    await state.update_data(
-        quiz_message_id=msg.message_id,
-        correct_index=correct_index,
-        user_messages=[message.message_id],  # Сохраняем первое сообщение
-    )
-
-    async def timer_task():
-        await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)
-        if await state.get_state() == UserState.answering_quiz:
-            await timeout_handler(message, user, state, pool, thread_id)
-
-    asyncio.create_task(timer_task())
-
-
-async def quiz_callback_handler(
-    callback: types.CallbackQuery,
-    state: FSMContext,
+async def poll_handler(
+    poll: types.Poll,
+    dp: Dispatcher,
+    bot: Bot,
     pool: PoolType,
 ) -> None:
-    """Обработка ответа на квиз."""
-    data = callback.data.split("_")
-    if len(data) != 4 or int(data[1]) != callback.from_user.id:
+    """Обработка закрытия опроса (таймаут) в ЛС как запасной вариант."""
+    if not poll.is_closed:
         return
 
-    selected_idx, correct_idx = int(data[2]), int(data[3])
+    poll_data = await get_active_poll(pool, poll.id)
+    if not poll_data:
+        return
+
+    user_id = poll_data["user_id"]
+    chat_id = poll_data["chat_id"]
+    message_id = poll_data["message_id"]
+
+    state = dp.fsm.get_context(bot=bot, chat_id=chat_id, user_id=user_id)
     user_data = await state.get_data()
-    lang = user_data["language"]
-    quiz_message_id = user_data["quiz_message_id"]
-    thread_id = user_data.get("thread_id")
-    user_messages = user_data.get("user_messages", [])
 
-    await callback.message.bot.delete_message(callback.message.chat.id, quiz_message_id)
-
-    if selected_idx == correct_idx:
-        result_msg = await callback.message.bot.send_message(
-            chat_id=callback.message.chat.id,
-            text=f"✅ {dialogs['correct'][lang]}",
-            message_thread_id=thread_id,
+    if not user_data.get("has_answered", False):
+        lang = user_data.get("language", "en")
+        combined_message = (
+            f"⏰ {dialogs['timeout'][lang].format(name=f'<a href=\"tg://user?id={user_id}\">{user_id}</a>')} "
+            f"{dialogs['blocked_message'][lang]}"
+        )
+        timeout_msg = await bot.send_message(
+            chat_id,
+            combined_message,
             parse_mode="HTML",
         )
-        await mark_user_passed(pool, callback.from_user.id)
-        await state.set_state(UserState.completed)
-        asyncio.create_task(
-            delete_message(
-                callback.message.bot,
-                callback.message.chat.id,
-                result_msg.message_id,
-                10,
-            )
-        )
-        logging.info(f"User {callback.from_user.id} answered correctly")
-        # Первое сообщение остается в чате
-    else:
-        result_msg = await callback.message.bot.send_message(
-            chat_id=callback.message.chat.id,
-            text=f"❌ {dialogs['incorrect'][lang].format(name=callback.from_user.mention_html())}",
-            message_thread_id=thread_id,
-            parse_mode="HTML",
-        )
-        try:
-            await ban_user_after_timeout(
-                callback.message.bot,
-                callback.message.chat.id,
-                callback.from_user.id,
-                pool,
-            )
-            logging.info(f"User {callback.from_user.id} banned due to incorrect answer")
-        except Exception as e:
-            logging.error(f"Failed to ban user {callback.from_user.id}: {e}")
+        group_chat_id = user_data.get("group_chat_id")
+        first_message_id = user_data.get("first_message_id")
+        bot_messages = user_data.get("bot_messages", [])
+        quiz_message_id = user_data.get("quiz_message_id")
+        greeting_message_id = user_data.get("greeting_message_id")
 
-        # Удаляем только первое сообщение пользователя
-        if user_messages:
-            first_msg_id = user_messages[0]
-            asyncio.create_task(
-                delete_message(
-                    callback.message.bot, callback.message.chat.id, first_msg_id
-                )
-            )
+        if first_message_id and group_chat_id:
+            asyncio.create_task(delete_message(bot, group_chat_id, first_message_id, delay=0))
+        for msg_id in bot_messages:
+            if group_chat_id:
+                asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
+        if greeting_message_id:
+            asyncio.create_task(delete_message(bot, chat_id, greeting_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+        if quiz_message_id:
+            asyncio.create_task(delete_message(bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
+        asyncio.create_task(delete_message(bot, chat_id, timeout_msg.message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT))
 
-        asyncio.create_task(
-            delete_message(
-                callback.message.bot,
-                callback.message.chat.id,
-                result_msg.message_id,
-                config.MESSAGE_DELETE_DELAY_INCORRECT,
-            )
-        )
+        if group_chat_id:
+            await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
+            logging.info(f"Пользователь {user_id} забанен из-за таймаута опроса (запасной обработчик)")
+
+        group_state = dp.fsm.get_context(bot=bot, chat_id=group_chat_id, user_id=user_id)
+        await group_state.clear()
+        logging.info(f"Очищено состояние группы для пользователя {user_id} в чате {group_chat_id}")
         await state.clear()
 
-
-async def timeout_handler(
-    message: types.Message,
-    user: types.User,
-    state: FSMContext,
-    pool: PoolType,
-    thread_id: Optional[int],
-) -> None:
-    """Обработка таймаута квиза."""
-    user_data = await state.get_data()
-    lang = user_data["language"]
-    quiz_message_id = user_data["quiz_message_id"]
-    user_messages = user_data.get("user_messages", [])
-
-    timeout_msg = await message.bot.send_message(
-        message.chat.id,
-        f"⏰ {dialogs['timeout'][lang].format(name=user.mention_html())}",
-        message_thread_id=thread_id,
-        parse_mode="HTML",
-    )
     try:
-        await ban_user_after_timeout(message.bot, message.chat.id, user.id, pool)
-        logging.info(f"User {user.id} banned due to quiz timeout")
-    except Exception as e:
-        logging.error(f"Failed to ban user {user.id}: {e}")
-
-    # Удаляем только первое сообщение пользователя
-    if user_messages:
-        first_msg_id = user_messages[0]
-        asyncio.create_task(delete_message(message.bot, message.chat.id, first_msg_id))
-
-    await message.bot.delete_message(message.chat.id, quiz_message_id)
-    asyncio.create_task(
-        delete_message(
-            message.bot,
-            message.chat.id,
-            timeout_msg.message_id,
-            config.MESSAGE_DELETE_DELAY_TIMEOUT,
-        )
-    )
-    await state.clear()
+        await bot.delete_message(chat_id, message_id)
+    except TelegramBadRequest:
+        logging.warning(f"Не удалось удалить опрос {poll.id} в чате {chat_id}")
+    await remove_active_poll(pool, poll.id)
