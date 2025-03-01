@@ -7,7 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
 from config import config, questions, dialogs
-from database import PoolType, add_active_poll
+from database import PoolType, add_active_poll, remove_active_poll
 from handlers.states import UserState
 from utils.message_utils import delete_message
 
@@ -134,7 +134,7 @@ async def check_poll_timeout(
     bot: Bot, state: FSMContext, user_id: int, dp, pool: PoolType
 ) -> None:
     """Проверяет, ответил ли пользователь на опрос за отведенное время."""
-    await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)  # Ждём 30 секунд
+    await asyncio.sleep(config.QUIZ_ANSWER_TIMEOUT)
     user_data = await state.get_data()
     if not user_data.get("has_answered", False):
         lang = user_data.get("language", "en")
@@ -145,69 +145,70 @@ async def check_poll_timeout(
         greeting_message_id = user_data.get("greeting_message_id")
         poll_id = user_data.get("quiz_poll_id")
 
-        # Отправляем сообщение о таймауте в ЛС
-        combined_message = (
-            f"⏰ {dialogs['timeout'][lang].format(name=f'<a href=\"tg://user?id={user_id}\">{user_id}</a>')} "
-            f"{dialogs['blocked_message'][lang]}"
-        )
-        timeout_msg = await bot.send_message(
-            user_id,
-            combined_message,
-            parse_mode="HTML",
-        )
-
-        # Моментально удаляем сообщения в чате
-        if first_message_id and group_chat_id:
-            from utils.message_utils import delete_message
-
-            asyncio.create_task(
-                delete_message(bot, group_chat_id, first_message_id, delay=0)
+        try:
+            combined_message = (
+                f"⏰ {dialogs['timeout'][lang].format(name=f'<a href=\"tg://user?id={user_id}\">{user_id}</a>')} "
+                f"{dialogs['blocked_message'][lang]}"
             )
-        for msg_id in bot_messages:
-            if group_chat_id:
-                asyncio.create_task(delete_message(bot, group_chat_id, msg_id, delay=0))
+            timeout_msg = await bot.send_message(
+                user_id, combined_message, parse_mode="HTML"
+            )
+        except TelegramBadRequest as e:
+            logging.error(
+                f"Не удалось отправить сообщение о таймауте в ЛС {user_id}: {e}"
+            )
+            return
 
-        # Удаляем сообщения в ЛС с задержкой
-        if greeting_message_id:
+        try:
+            if first_message_id and group_chat_id:
+                asyncio.create_task(
+                    delete_message(bot, group_chat_id, first_message_id, delay=0)
+                )
+            for msg_id in bot_messages:
+                if group_chat_id:
+                    asyncio.create_task(
+                        delete_message(bot, group_chat_id, msg_id, delay=0)
+                    )
+            if greeting_message_id:
+                asyncio.create_task(
+                    delete_message(
+                        bot,
+                        user_id,
+                        greeting_message_id,
+                        config.MESSAGE_DELETE_DELAY_TIMEOUT,
+                    )
+                )
+            if quiz_message_id:
+                asyncio.create_task(
+                    delete_message(
+                        bot,
+                        user_id,
+                        quiz_message_id,
+                        config.MESSAGE_DELETE_DELAY_TIMEOUT,
+                    )
+                )
             asyncio.create_task(
                 delete_message(
                     bot,
                     user_id,
-                    greeting_message_id,
+                    timeout_msg.message_id,
                     config.MESSAGE_DELETE_DELAY_TIMEOUT,
                 )
             )
-        if quiz_message_id:
-            asyncio.create_task(
-                delete_message(
-                    bot, user_id, quiz_message_id, config.MESSAGE_DELETE_DELAY_TIMEOUT
-                )
-            )
-        asyncio.create_task(
-            delete_message(
-                bot,
-                user_id,
-                timeout_msg.message_id,
-                config.MESSAGE_DELETE_DELAY_TIMEOUT,
-            )
-        )
+        except Exception as e:
+            logging.error(f"Ошибка при удалении сообщений для {user_id}: {e}")
 
-        # Баним пользователя
         if group_chat_id:
             from utils.moderation import ban_user_after_timeout
 
             await ban_user_after_timeout(bot, group_chat_id, user_id, pool)
             logging.info(f"Пользователь {user_id} забанен из-за таймаута опроса")
 
-        # Очищаем состояния
         group_state = dp.fsm.get_context(
             bot=bot, chat_id=group_chat_id, user_id=user_id
         )
         await group_state.clear()
         await state.clear()
 
-        # Удаляем опрос из базы
         if poll_id:
-            from database import remove_active_poll
-
             await remove_active_poll(pool, poll_id)
