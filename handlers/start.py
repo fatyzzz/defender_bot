@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 from config import config, questions, dialogs
 from database import PoolType, add_active_poll
 from handlers.states import UserState
+from utils.message_utils import delete_message
 
 
 async def start_handler(
