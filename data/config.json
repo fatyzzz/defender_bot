@@ -32,64 +32,6 @@
     {
       "id": 2,
       "question": {
-        "en": "What is VPN used for?",
-        "ru": "Для чего используется VPN?",
-        "zh": "VPN 用于什么？"
-      },
-      "answers": {
-        "en": [
-          "Bypassing blocks or secure connection",
-          "Speeding up file downloads",
-          "Cryptocurrency mining",
-          "Creating websites"
-        ],
-        "ru": [
-          "Для обхода блокировок или защищенного соединения",
-          "Для ускорения загрузки файлов",
-          "Для майнинга криптовалют",
-          "Для создания сайтов"
-        ],
-        "zh": [
-          "绕过封锁或安全连接",
-          "加速文件下载",
-          "加密货币挖矿",
-          "创建网站"
-        ]
-      },
-      "correct_index": 0
-    },
-    {
-      "id": 3,
-      "question": {
-        "en": "What is a DNS leak?",
-        "ru": "Что такое DNS-утечка?",
-        "zh": "什么是 DNS 泄漏？"
-      },
-      "answers": {
-        "en": [
-          "When VPN doesn't hide DNS queries",
-          "Data leak from database",
-          "DNS configuration error",
-          "Type of attack on VPN"
-        ],
-        "ru": [
-          "Когда VPN не скрывает запросы к DNS-серверам",
-          "Утечка данных из базы данных",
-          "Ошибка в настройках DNS",
-          "Вид атаки на VPN"
-        ],
-        "zh": [
-          "当 VPN 不隐藏 DNS 查询时",
-          "数据库数据泄漏",
-          "DNS 配置错误",
-          "对 VPN 的攻击类型"
-        ]
-      },
-      "correct_index": 0
-    },
-    {
-      "id": 4,
-      "question": {
         "en": "Which of these is a VPN protocol?",
         "ru": "Какой из этих вариантов — протокол VPN?",
         "zh": "以下哪个是 VPN 协议？"
@@ -117,7 +59,7 @@
       "correct_index": 0
     },
     {
-      "id": 5,
+      "id": 3,
       "question": {
         "en": "What is Xray-core?",
         "ru": "Что такое Xray-core?",
@@ -141,6 +83,122 @@
           "网络浏览器",
           "社交网络",
           "编程语言"
+        ]
+      },
+      "correct_index": 0
+    },
+    {
+      "id": 4,
+      "question": {
+        "en": "Which section is NOT part of the main configuration?",
+        "ru": "Какой раздел НЕ входит в основной конфиг?",
+        "zh": "哪个部分不属于主要配置？"
+      },
+      "answers": {
+        "en": [
+          "inbounds",
+          "outbounds",
+          "routing",
+          "firewall"
+        ],
+        "ru": [
+          "inbounds",
+          "outbounds",
+          "routing",
+          "firewall"
+        ],
+        "zh": [
+          "inbounds",
+          "outbounds",
+          "routing",
+          "firewall"
+        ]
+      },
+      "correct_index": 3
+    },
+    {
+      "id": 5,
+      "question": {
+        "en": "What is sniffing used for?",
+        "ru": "Для чего используется sniffing?",
+        "zh": "sniffing 用于什么？"
+      },
+      "answers": {
+        "en": [
+          "Encryption of traffic",
+          "Determining the type of traffic (HTTP, TLS, etc.)",
+          "Load balancing",
+          "Error logging"
+        ],
+        "ru": [
+          "Шифрование трафика",
+          "Определение типа трафика (HTTP, TLS и т.д.)",
+          "Балансировка нагрузки",
+          "Логирование ошибок"
+        ],
+        "zh": [
+          "流量加密",
+          "确定流量类型（HTTP、TLS 等）",
+          "负载均衡",
+          "错误日志记录"
+        ]
+      },
+      "correct_index": 1
+    },
+    {
+      "id": 6,
+      "question": {
+        "en": "What is reverse used for?",
+        "ru": "Для чего используется reverse?",
+        "zh": "reverse 用于什么？"
+      },
+      "answers": {
+        "en": [
+          "Reverse proxy server",
+          "Load balancing",
+          "DNS encryption",
+          "Protocol switching"
+        ],
+        "ru": [
+          "Обратный прокси-сервер",
+          "Балансировка нагрузки",
+          "Шифрование DNS",
+          "Смена протокола"
+        ],
+        "zh": [
+          "反向代理服务器",
+          "负载均衡",
+          "DNS 加密",
+          "协议切换"
+        ]
+      },
+      "correct_index": 0
+    },
+    {
+      "id": 7,
+      "question": {
+        "en": "Which parameter enables statistics collection?",
+        "ru": "Какой параметр включает сбор статистики?",
+        "zh": "哪个参数启用统计收集？"
+      },
+      "answers": {
+        "en": [
+          "stats",
+          "log",
+          "metrics",
+          "enableStats"
+        ],
+        "ru": [
+          "stats",
+          "log",
+          "metrics",
+          "enableStats"
+        ],
+        "zh": [
+          "stats",
+          "log",
+          "metrics",
+          "enableStats"
         ]
       },
       "correct_index": 0
